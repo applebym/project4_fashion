@@ -30,7 +30,7 @@ count = 0
 #     collection_top.insert(document)                  
 
 
-submissions_contro = r.get_controversial(limit=1000)
+submissions_contro = r.get_controversial(limit=210)
 
 for post in submissions_contro:
     print count
