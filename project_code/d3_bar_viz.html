@@ -1,0 +1,297 @@
+<!-- 
+d3_bar_viz.html
+By Melanie Appleby
+Written for Project 4 at Metis
+
+Code for a D3 visualization of topic modeling on Reddit text data. 
+ -->
+
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 10px;
+  font-family:  "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  display: none;
+}
+
+.div {
+  width: 320px;
+  padding: 10px;
+  border: 5px solid gray;
+  margin: 0;
+  fill: gray;
+}
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 0.78;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+</style>
+<body>
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+<script>
+
+var margin = {top: 40, right: 10, bottom: 600, left: 190},
+    width = 1200 - margin.left - margin.right,
+    height = 1000 - margin.top - margin.bottom;
+
+var x0 = d3.scale.ordinal()
+    .rangeRoundBands([0, width], .1);
+
+var x1 = d3.scale.ordinal();
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var color = d3.scale.ordinal()
+    .range(["#DF3935", "#74C3FF"]);
+
+var xAxis = d3.svg.axis()
+    .scale(x0)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .tickFormat(d3.format(".n"));
+
+var tip = d3.tip()
+  .attr('class', 'd3-tip')
+  .offset([-10, 0])
+  .html(function(d) {
+    return "<strong style='font-size:10pt'>Topic Words:</strong> <span style='font-size:10pt'>" + d.word + "</span>";
+  });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+svg.call(tip);
+
+d3.csv("reddit.csv", function(error, data) {
+  if (error) throw error;
+
+  var postNames = ["Controversial","Popular"];
+
+  data.forEach(function(d) {
+    d.posts = postNames.map(function(name) { 
+      if (name =='Controversial') {
+        return { name: name, value: +d[name], word: d.TopicWord, reddit1: d.ControversialText1, reddit2: d.ControversialText2, reddit3: d.ControversialText3};
+      }
+      else {
+        return { name: name, value: +d[name], word: d.TopicWord, reddit1: d.PopularText1, reddit2: d.PopularText2, reddit3: d.PopularText3};
+      }
+    });
+  });
+  
+  x0.domain(data.map(function(d) { return d.TopicNum; }));
+  x1.domain(postNames).rangeRoundBands([0, x0.rangeBand()]);
+  y.domain([0, d3.max(data, function(d) { return d3.max(d.posts, function(d) { return d.value; }); })]);
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .style("font-size", "13px")
+      .call(xAxis)
+      .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", function(d) {
+          return "rotate (-45)"
+        });
+        
+  svg.append("g")
+      .attr("class", "y axis")
+      .style("font-size", "13px")
+      .call(yAxis)
+
+  svg.append("rect")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("x", 0)
+      .attr("y", 0)
+      .style("fill", "#EFEEEC");    
+
+  var topic = svg.selectAll(".topic")
+      .data(data)
+    .enter().append("g")
+      .attr("class", "topic")
+      .attr("transform", function(d) { return "translate(" + x0(d.TopicNum) + ",0)"; });
+
+  topic.selectAll("rect")
+      .data(function(d) { return d.posts; })
+    .enter().append("rect")
+      .attr("width", x1.rangeBand())
+      .attr("x", function(d) { return x1(d.name); })
+      .attr("y", function(d) { return y(d.value); })
+      .attr("height", function(d) { return height - y(d.value); })
+      .style("fill", function(d) { return color(d.name); })
+      .style("opacity", .85)
+      .on('mouseover', function(d) { 
+          if (d.name == 'Controversial') {
+            d3.select(this)
+            .style("fill", "#8F0000")
+          }
+          else {
+            d3.select(this)
+            .style("fill", "#06559C")
+          }
+          tip.show(d); } )
+      .on('mouseout', function(d) { 
+          if (d.name == 'Controversial') {
+            d3.select(this)
+            .style("fill", "#DF3935")
+          }
+          else {
+            d3.select(this)
+            .style("fill", "#74C3FF")
+          }
+          tip.hide(d); } )
+      .on('click', function(d) {
+          svg.select("#redditText1").remove();
+          svg.select("#redditText2").remove();
+          svg.select("#redditText3").remove();
+          svg.append("text")
+            .style("pointer-events", "none")
+            .attr("id", "redditText1")
+            .attr("x", 70)
+            .attr("y", height + 175)
+            .style("font-size", "13.5px") 
+            .style("text-decoration", "bold")  
+            .text(d.reddit1);
+          svg.append("text")
+            .style("pointer-events", "none")
+            .attr("id", "redditText2")
+            .attr("x", 70)
+            .attr("y", height + 210)
+            .style("font-size", "13.5px") 
+            .style("text-decoration", "bold")  
+            .text(d.reddit2);
+          svg.append("text")
+            .style("pointer-events", "none")
+            .attr("id", "redditText3")
+            .attr("x", 70)
+            .attr("y", height + 245)
+            .style("font-size", "13.5px") 
+            .style("text-decoration", "italic")  
+            .text(d.reddit3);
+      });
+  
+  var legend = svg.selectAll(".legend")
+      .data(postNames.slice().reverse())
+    .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+  legend.append("rect")
+      .attr("x", width - 30)
+      .attr("y", 15)
+      .attr("width", 18)
+      .attr("height", 18)
+      .style("fill", color);
+
+  legend.append("text")
+      .attr("x", width - 36)
+      .attr("y", 24)
+      .attr("dy", ".35em")
+      .style("text-anchor", "end")
+      .style("font-size", "14px")
+      .text(function(d) { return d; });   
+  
+  // X label
+  svg.append("text")
+    .attr("class", "x label")
+    .attr("x", width / 2.2)
+    .attr("y", height + 90)
+    .style("font-size", "15px") 
+    .text("Topic Number");
+  
+  // Y label
+  svg.append("text")
+    .attr("class", "y label")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -250)
+    .attr("y", -57)
+    .style("font-size", "15px") 
+    .text("Average Topic Strength");
+  
+  // Title
+  svg.append("text")
+      .attr("x", (width / 2))             
+      .attr("y", 5 - (margin.top / 2))
+      .attr("text-anchor", "middle")  
+      .style("font-size", "23px") 
+      .style("font-weight", "bold") 
+      .text("Topic Strength For 'Controversial' and 'Popular' Reddit Posts");
+
+  // Instructions
+  svg.append("text")
+      .attr("x", 565)             
+      .attr("y", height + 140)
+      .attr("text-anchor", "middle")  
+      .style("font-size", "14px") 
+      .style("fill", "#DC381F")
+      .style("font-weight", "bold")
+      .text("Click Each Bars To See Corresponding Reddit Posts");
+
+  // Reddit Posts Title
+  svg.append("text")
+      .attr("x", 70)             
+      .attr("y", height + 140)
+      .attr("text-anchor", "left")  
+      .style("font-size", "16px")  
+      .style("font-weight", "bold")  
+      .text("Top 3 Reddit Posts Within Chosen Topic: ");
+
+  // Reddit alien picture
+  svg.append("svg:image")
+      .attr("xlink:href", "https://www.redditstatic.com/about/assets/reddit-alien.png")
+      .attr("x", -45)
+      .attr("y", height + 137)
+      .attr("width", 120)
+      .attr("height", 120);
+
+});
+
+</script>
